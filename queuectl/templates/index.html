@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QueueCTL Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: #f4f7fa;
+            color: #333;
+            margin: 0;
+        }
+
+        header {
+            background: #fff;
+            border-bottom: 1px solid #ddd;
+            padding: 20px 30px;
+        }
+
+        header h1 {
+            margin: 0;
+        }
+
+        main {
+            padding: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            padding: 20px;
+        }
+
+        .card h3 {
+            margin-top: 0;
+        }
+
+        .card .count {
+            font-size: 2.5em;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .card.pending {
+            color: #007bff;
+        }
+
+        .card.processing {
+            color: #ffc107;
+        }
+
+        .card.dead {
+            color: #dc3545;
+        }
+
+        .card.completed {
+            color: #28a745;
+        }
+
+        .card.failed {
+            color: #fd7e14;
+        }
+
+        .card.workers {
+            color: #6f42c1;
+        }
+
+        .card i {
+            font-size: 2em;
+            margin-bottom: 10px;
+            opacity: 0.8;
+        }
+
+        .card .subtitle {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .section {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            margin-top: 30px;
+            overflow-x: auto;
+        }
+
+        .section h2 {
+            padding: 20px;
+            margin: 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 12px 20px;
+            border-bottom: 1px solid #eee;
+            white-space: nowrap;
+        }
+
+        th {
+            background: #f9f9f9;
+        }
+
+        tbody tr:last-child td {
+            border-bottom: 0;
+        }
+
+        code {
+            background: #eee;
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+
+        .empty-state {
+            padding: 40px;
+            text-align: center;
+            color: #888;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>QueueCTL Dashboard</h1>
+    </header>
+
+    <main>
+        <h2>Overview</h2>
+        <div class="grid">
+            <div class="card workers">
+                <i class="fas fa-cogs"></i>
+                <h3>Active Workers</h3>
+                <div class="count" id="count-workers">...</div>
+                <div class="subtitle" id="workers-status">Healthy</div>
+            </div>
+            <div class="card pending">
+                <i class="fas fa-clock"></i>
+                <h3>Pending</h3>
+                <div class="count" id="count-pending">...</div>
+            </div>
+            <div class="card processing">
+                <i class="fas fa-spinner fa-spin"></i>
+                <h3>Processing</h3>
+                <div class="count" id="count-processing">...</div>
+            </div>
+            <div class="card dead">
+                <i class="fas fa-skull"></i>
+                <h3>Dead (DLQ)</h3>
+                <div class="count" id="count-dead">...</div>
+            </div>
+            <div class="card failed">
+                <i class="fas fa-exclamation-triangle"></i>
+                <h3>Failed (Retrying)</h3>
+                <div class="count" id="count-failed">...</div>
+            </div>
+            <div class="card completed">
+                <i class="fas fa-check-circle"></i>
+                <h3>Completed</h3>
+                <div class="count" id="count-completed">...</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Active Workers</h2>
+            <table id="workers-table">
+                <thead>
+                    <tr>
+                        <th>PID</th>
+                        <th>Status</th>
+                        <th>CPU %</th>
+                        <th>Memory (MB)</th>
+                        <th>Started</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>Currently Running Jobs</h2>
+            <table id="running-table">
+                <thead>
+                    <tr>
+                        <th>Job ID</th>
+                        <th>Command</th>
+                        <th>Worker</th>
+                        <th>Started At</th>
+                        <th>Duration</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>Dead Letter Queue (DLQ)</h2>
+            <table id="dlq-table">
+                <thead>
+                    <tr>
+                        <th>Job ID</th>
+                        <th>Command</th>
+                        <th>Attempts</th>
+                        <th>Last Error</th>
+                        <th>Failed At</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>Pending Jobs</h2>
+            <table id="pending-table">
+                <thead>
+                    <tr>
+                        <th>Job ID</th>
+                        <th>Command</th>
+                        <th>Priority</th>
+                        <th>Enqueued At</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>Completed Jobs</h2>
+            <table id="completed-table">
+                <thead>
+                    <tr>
+                        <th>Job ID</th>
+                        <th>Command</th>
+                        <th>Duration</th>
+                        <th>Completed At</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <script>
+        // --- Helper functions to format data ---
+        function formatDateTime(isoString) {
+            if (!isoString) return 'N/A';
+            try {
+                const date = new Date(isoString);
+                return date.toLocaleString();
+            } catch (e) {
+                return isoString;
+            }
+        }
+
+        function truncateString(str, num = 100) {
+            if (!str) return 'N/A';
+            if (str.length <= num) {
+                return str;
+            }
+            return str.slice(0, num) + '...';
+        }
+
+        // --- Helper functions to update the HTML ---
+
+        function updateCounts(counts) {
+            document.getElementById('count-pending').innerText = counts.pending;
+            document.getElementById('count-processing').innerText = counts.processing;
+            document.getElementById('count-dead').innerText = counts.dead;
+            document.getElementById('count-failed').innerText = counts.failed;
+            document.getElementById('count-completed').innerText = counts.completed;
+        }
+
+        function updateWorkersOverview(workers) {
+            const count = workers ? workers.length : 0;
+            document.getElementById('count-workers').innerText = count;
+
+            const statusEl = document.getElementById('workers-status');
+            if (count === 0) {
+                statusEl.innerText = 'No Workers';
+                statusEl.style.color = '#dc3545';  // red
+            } else {
+                const healthyStates = ['running', 'sleeping', 'idle'];
+                const allHealthy = workers.every(w => healthyStates.includes(w.status.toLowerCase()));
+                if (allHealthy) {
+                    statusEl.innerText = 'All Healthy';
+                    statusEl.style.color = '#28a745';  // green
+                } else {
+                    const unhealthyWorkers = workers.filter(w => !healthyStates.includes(w.status.toLowerCase()));
+                    statusEl.innerText = `Issue: ${unhealthyWorkers[0].status}`;
+                    statusEl.style.color = '#ffc107';  // yellow
+                }
+            }
+        }
+
+        function updateTable(tbodyId, jobs, rowBuilder, columns) {
+            const tbody = document.getElementById(tbodyId);
+            tbody.innerHTML = ''; // Clear old data
+
+            if (!jobs || jobs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="${columns}" class="empty-state">Queue is empty.</td></tr>`;
+                return;
+            }
+
+            for (const job of jobs) {
+                tbody.innerHTML += rowBuilder(job);
+            }
+        }
+
+        // --- Specific Table Updaters ---
+
+        function updateWorkersTable(workers) {
+            updateTable('workers-table-body', workers, (worker) => `
+                <tr>
+                    <td>${worker.pid}</td>
+                    <td>${worker.status}</td>
+                    <td>${worker.cpu_percent.toFixed(1)}%</td>
+                    <td>${worker.memory_mb.toFixed(2)}</td>
+                    <td>${worker.created}</td>
+                </tr>
+            `, 5);
+        }
+
+        function updateDlqTable(dlqJobs) {
+            updateTable('dlq-table-body', dlqJobs, (job) => `
+                <tr>
+                    <td><code>${job.id}</code></td>
+                    <td><code>${truncateString(job.command)}</code></td>
+                    <td>${job.attempts}</td>
+                    <td>${truncateString(job.error_message)}</td>
+                    <td>${formatDateTime(job.updated_at)}</td>
+                </tr>
+            `, 5);
+        }
+
+        function updatePendingTable(pendingJobs) {
+            updateTable('pending-table-body', pendingJobs, (job) => `
+                <tr>
+                    <td><code>${job.id}</code></td>
+                    <td><code>${truncateString(job.command)}</code></td>
+                    <td>${job.priority}</td>
+                    <td>${formatDateTime(job.created_at)}</td>
+                </tr>
+            `, 4);
+        }
+
+        function updateRunningTable(processingJobs) {
+            updateTable('running-table-body', processingJobs, (job) => {
+                const startTime = new Date(job.updated_at);
+                const now = new Date();
+                const duration = Math.round((now - startTime) / 1000); // in seconds
+                const durationStr = duration < 60 ? `${duration}s` : `${Math.floor(duration / 60)}m ${duration % 60}s`;
+
+                return `
+                <tr>
+                    <td><code>${job.id}</code></td>
+                    <td><code>${truncateString(job.command)}</code></td>
+                    <td>${job.locked_by || 'Unknown'}</td>
+                    <td>${formatDateTime(job.updated_at)}</td>
+                    <td>${durationStr}</td>
+                </tr>
+            `}, 5);
+        }
+
+        function updateCompletedTable(completedJobs) {
+            updateTable('completed-table-body', completedJobs, (job) => {
+                const startTime = new Date(job.created_at);
+                const endTime = new Date(job.updated_at);
+                const duration = Math.round((endTime - startTime) / 1000); // in seconds
+                const durationStr = duration < 60 ? `${duration}s` : `${Math.floor(duration / 60)}m ${duration % 60}s`;
+
+                return `
+                <tr>
+                    <td><code>${job.id}</code></td>
+                    <td><code>${truncateString(job.command)}</code></td>
+                    <td>${durationStr}</td>
+                    <td>${formatDateTime(job.updated_at)}</td>
+                </tr>
+            `}, 4);
+        }
+
+        // --- The main function to fetch data ---
+
+        async function fetchData() {
+            try {
+                const response = await fetch('/api/status');
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                const data = await response.json();
+
+                if (data.success) {
+                    // Update all sections
+                    updateCounts(data.job_counts);
+                    updateWorkersOverview(data.workers);
+                    updateWorkersTable(data.workers);
+                    updateDlqTable(data.jobs.dead);
+                    updatePendingTable(data.jobs.pending);
+                    updateRunningTable(data.jobs.processing);
+                    updateCompletedTable(data.jobs.completed);
+                } else {
+                    console.error('API Error:', data.error);
+                }
+            } catch (error) {
+                console.error('Fetch Error:', error);
+            }
+        }
+
+        // --- Start the auto-update loop ---
+
+        // Fix table body IDs (HTML was missing '-body')
+        document.getElementById('workers-table').innerHTML += '<tbody id="workers-table-body"></tbody>';
+        document.getElementById('dlq-table').innerHTML += '<tbody id="dlq-table-body"></tbody>';
+        document.getElementById('pending-table').innerHTML += '<tbody id="pending-table-body"></tbody>';
+        document.getElementById('running-table').innerHTML += '<tbody id="running-table-body"></tbody>';
+        document.getElementById('completed-table').innerHTML += '<tbody id="completed-table-body"></tbody>';
+
+
+        // 1. Fetch data immediately on page load
+        fetchData();
+
+        // 2. Then, fetch data every 3 seconds
+        setInterval(fetchData, 3000);
+
+    </script>
+</body>
+
+</html>
