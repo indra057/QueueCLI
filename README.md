@@ -2,6 +2,26 @@
 
 A robust, CLI-based job queue system featuring priority queuing, job timeouts, automatic retries with exponential backoff, and a real-time web dashboard. Built for production workloads with reliability and monitoring in mind.
 
+## 🎬 Demo Video
+
+<div align="center">
+  <img src="queuectl-demo.gif" alt="QueueCTL Demo" width="600"/>
+  <p><em>Watch QueueCTL in action – Real-time job queue processing with priority, timeout, and Flask dashboard.</em></p>
+</div>
+
+### 📺 Detailed Walkthrough
+
+For a full demonstration covering job enqueueing, worker management, timeout handling, DLQ operations, and dashboard monitoring:
+
+<div align="center">
+  <a href="https://youtu.be/XIzQPtGxWyo" target="_blank">
+    <img src="https://img.youtube.com/vi/XIzQPtGxWyo/maxresdefault.jpg" alt="QueueCTL Full Walkthrough" width="500"/>
+  </a>
+  <p><em>🎥 <strong>Complete QueueCTL Walkthrough</strong> — Deep dive into priority queues, job timeouts, DLQ retry, and the live dashboard</em></p>
+  <p><a href="https://youtu.be/XIzQPtGxWyo" target="_blank">▶️ Watch on YouTube</a></p>
+</div>
+
+
 ## 🎯 Features
 
 - ✅ **Priority Queueing** - Support for high/medium/low priority jobs
@@ -140,16 +160,29 @@ queuectl status
 └─────────────────────────┘
 ```
 
-### Dashboard & API Architecture
-The dashboard provides real-time monitoring by separating the web server from the CLI and workers.
+### 🖥️ Dashboard & API Architecture
 
-    Backend (dashboard.py): This is a standalone Flask web server. Its only job is to read from the queuectl.db database (using the Storage class) and provide data as JSON. It does not run any jobs itself.
+The **QueueCTL Dashboard** provides real-time job and worker monitoring through a simple web-based interface, keeping the CLI and workers separate from the web layer.
 
-    Frontend (index.html): This is a single-page application that runs in your browser. It uses JavaScript to fetch data from the backend API and render it.
+#### ⚙️ Architecture Overview
 
-    API (/api/status): The frontend calls this endpoint every 3 seconds. The backend then queries the database for all current job/worker statuses and returns this data as a JSON object.
+- **Backend (`dashboard.py`)** —  
+  A standalone **Flask web server** that reads data from `queuectl.db` using the `Storage` class.  
+  It doesn’t execute any jobs; its role is purely to serve JSON data for the frontend.
 
-    Data Flow: The JavaScript in index.html receives this JSON and updates the counts, tables, and status indicators on the webpage. This creates the "live" monitoring effect without ever refreshing the page.
+- **Frontend (`index.html`)** —  
+  A lightweight **single-page web app** that runs in your browser.  
+  It fetches live data from the backend API and displays job and worker stats dynamically.
+
+- **API Endpoint (`/api/status`)** —  
+  The frontend polls this endpoint every **3 seconds**, and the backend responds with a JSON snapshot of all jobs, workers, and queue metrics.
+
+- **Data Flow** —  
+  JavaScript in `index.html` receives this JSON, updates job counts, worker tables, and visual indicators —  
+  creating a **real-time dashboard** without page reloads.
+
+#### 🔄 Real-time Flow
+
 
 ```
 ───────────────────────┐         ┌──────────────────────────┐
